@@ -11,7 +11,7 @@ CopierWorker::CopierWorker(QString source, QString dest)
 {
 }
 
-void CopierWorker::doWork()
+void CopierWorker::run()
 {
     QFile fromFile(m_Source);
     QFile toFile(m_Dest);

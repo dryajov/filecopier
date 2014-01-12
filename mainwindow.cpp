@@ -1,9 +1,10 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "QStringList"
-#include "QMessageBox"
-#include "QDebug"
-#include "QFileDialog"
+#include <QStringList>
+#include <QMessageBox>
+#include <QDebug>
+#include <QFileDialog>
+#include <QThreadPool>
 
 #include "copierworker.h"
 
@@ -88,15 +89,11 @@ void MainWindow::on_btnCopy_clicked()
             QFileInfo fileInfo(fileName);
             QString destFile(m_destDir + "/" + fileInfo.fileName());
 
-            QThread *thread = new QThread();
-
             CopierWorker *copierWorker = new CopierWorker(fileName, destFile);
-            copierWorker->moveToThread(thread);
-            connect(thread, SIGNAL(finished()), copierWorker, SLOT(deleteLater()));
-            connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-            connect(thread, SIGNAL(started()), copierWorker, SLOT(doWork()));
             connect(copierWorker, SIGNAL(bytesWritten(qint64)), this, SLOT(progress(qint64)));
-            thread->start();
+            connect(copierWorker, SIGNAL(error(QString)), this, SLOT(onError(QString)));
+
+            QThreadPool::globalInstance()->start(copierWorker);
         }
     }
 

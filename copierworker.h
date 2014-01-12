@@ -1,9 +1,10 @@
 #ifndef COPIERWORKER_H
 #define COPIERWORKER_H
 
-#include <QThread>
+#include <QObject>
+#include <QRunnable>
 
-class CopierWorker : public QThread
+class CopierWorker  : public QObject, public QRunnable
 {
     Q_OBJECT
 
@@ -12,11 +13,11 @@ public:
 
 signals:
     void bytesWritten(qint64);
-    void done(int m_Id);
+    void done();
     void error(QString file);
 
-public slots:
-    void doWork();
+public:
+    void run();
 
 private:
     QString m_Source;
