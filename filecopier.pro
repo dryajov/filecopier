@@ -14,10 +14,9 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    copyfilewidget.cpp
+    copierworker.cpp
 
 HEADERS  += mainwindow.h \
-    copyfilewidget.h
+    copierworker.h
 
-FORMS    += mainwindow.ui \
-    copyfilewidget.ui
+FORMS    += mainwindow.ui

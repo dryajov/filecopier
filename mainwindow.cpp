@@ -3,71 +3,104 @@
 #include "QStringList"
 #include "QMessageBox"
 #include "QDebug"
+#include "QFileDialog"
 
-#include "copyfilewidget.h"
+#include "copierworker.h"
+
+#define SRC_TEXT "Source path"
+#define DEST_TEXT "Destination path"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    m_widgetList(new QList<QWidget*>())
+    ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
-    // add the initial widget
-    ui->fileSelectorsVLayout->addWidget(new CopyFileWidget(this));
     ui->progressBar->setMinimum(0);
     ui->progressBar->reset();
 }
 
 MainWindow::~MainWindow()
 {
-    delete m_widgetList;
     delete ui;
 }
 
-void MainWindow::enableCopy() {
-//    if (QFile::exists(m_sSource) && QDir().exists(m_sDestination)) {
-//        ui->pushButton->setEnabled(true);
-//    }
-}
+void MainWindow::progress(qint64 bytes)
+{
+    m_written += bytes;
+    ui->progressBar->setValue( m_written / 1024 );
 
-void MainWindow::copyFile() {
-//    if (QFile::exists(m_sSource)) {
-//        QFileInfo fileInfo(m_sSource);
-//        m_sDestination += "/" + fileInfo.fileName();
-//        if (!QFile::copy(m_sSource, m_sDestination)) {
-//            QMessageBox::information(this,
-//                                     "Error", "An error ocured, the file was not copied!",
-//                                     QMessageBox::Ok);
-//        }
-//    }
+    if (m_total == m_written)
+    {
+        m_written = m_total = 0;
+        ui->txtDest->setText(DEST_TEXT);
+        ui->txtSource->setText(SRC_TEXT);
+        ui->btnCopy->setEnabled(false);
+    }
 
     return;
 }
 
-void MainWindow::on_btnCopy_clicked()
+void MainWindow::onError(QString file)
 {
-
+    QString errorMsg;
+    errorMsg = errorMsg.arg("An error ocured, the file %1 was not copied!", file);
+    QMessageBox::information(this,
+                            "Error", errorMsg,
+                            QMessageBox::Ok);
 }
 
-void MainWindow::on_btnAdd_clicked()
+void MainWindow::on_btnSource_clicked()
 {
-    QWidget* w = new CopyFileWidget(this);
-    m_widgetList->append(w);
-    ui->fileSelectorsVLayout->addWidget(w);
-}
+    m_sourceFiles = QFileDialog::getOpenFileNames(this, "Select source files", "~", "*.*");
+    if (!m_sourceFiles.isEmpty())
+    {
+        QFileInfo fileInfo(m_sourceFiles.at(0));
+        ui->txtSource->setText(fileInfo.absoluteDir().absolutePath());
 
-void MainWindow::on_btnRemove_clicked()
-{
-    int count = ui->fileSelectorsVLayout->count();
-
-    qDebug() << "Amount of children found :" << count;
-
-    if (count <= 1) {
-        return;
+        foreach (const QString &fileName, m_sourceFiles)
+        {
+             m_total += QFileInfo(fileName).size();
+        }
+        ui->progressBar->setMaximum(m_total / 1024);
     }
 
-    QLayoutItem* w = ui->fileSelectorsVLayout->takeAt(0);
-    ui->fileSelectorsVLayout->removeItem(w);
-    delete w;
+    if (!m_sourceFiles.isEmpty() && !m_destDir.isEmpty())
+        ui->btnCopy->setEnabled(true);
+
+    return;
+}
+
+void MainWindow::on_btnDest_clicked()
+{
+    m_destDir = QFileDialog::getExistingDirectory(this, "Select destination directory", "/");
+    ui->txtDest->setText(m_destDir);
+
+    if (!m_sourceFiles.isEmpty() && !m_destDir.isEmpty())
+        ui->btnCopy->setEnabled(true);
+}
+
+void MainWindow::on_btnCopy_clicked()
+{   foreach (const QString &fileName, m_sourceFiles)
+    {
+        if (QFile::exists(fileName))
+        {
+            QFileInfo fileInfo(fileName);
+            QString destFile(m_destDir + "/" + fileInfo.fileName());
+
+            QThread *thread = new QThread();
+
+            CopierWorker *copierWorker = new CopierWorker(fileName, destFile);
+            copierWorker->moveToThread(thread);
+            connect(thread, SIGNAL(finished()), copierWorker, SLOT(deleteLater()));
+            connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+            connect(thread, SIGNAL(started()), copierWorker, SLOT(doWork()));
+            connect(copierWorker, SIGNAL(bytesWritten(qint64)), this, SLOT(progress(qint64)));
+            thread->start();
+        }
+    }
+
+    m_sourceFiles.clear(); // remove everything from the list..
+
+    return;
 }

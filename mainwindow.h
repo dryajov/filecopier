@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QVector>
 
 namespace Ui {
 class MainWindow;
@@ -15,24 +16,27 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     
+public slots:
+    void progress(qint64 bytes);
+    void onError(QString file);
+
 private slots:
+    void on_btnSource_clicked();
+
+    void on_btnDest_clicked();
+
     void on_btnCopy_clicked();
-
-    void on_btnAdd_clicked();
-
-    void on_btnRemove_clicked();
-
-private:
-    void copyFile();
-    void enableCopy();
-
-    void remove(QLayout* layout);
 
 private:
     Ui::MainWindow *ui;
 
 private:
-    QList<QWidget*> *m_widgetList;
+    QStringList m_sourceFiles;
+    QString     m_destDir;
+    qint64      m_written;
+    qint64      m_total;
+
+    QVector<QThread*> m_threads;
 };
 
 #endif // MAINWINDOW_H
