@@ -14,9 +14,19 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    copierworker.cpp
+    copierworker.cpp \
+    filebrowser.cpp \
+    filecopywidget.cpp \
+    engines/copyenginedefault.cpp
 
 HEADERS  += mainwindow.h \
-    copierworker.h
+    copierworker.h \
+    filebrowser.h \
+    filecopywidget.h \
+    icopyengine.h \
+    engines/copyengineabstract.h \
+    engines/copyenginedefault.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    filebrowser.ui \
+    filecopywidget.ui

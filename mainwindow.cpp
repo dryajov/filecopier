@@ -3,13 +3,11 @@
 #include <QStringList>
 #include <QMessageBox>
 #include <QDebug>
-#include <QFileDialog>
-#include <QThreadPool>
 
-#include "copierworker.h"
+#include "filebrowser.h"
+#include "filecopywidget.h"
 
-#define SRC_TEXT "Source path"
-#define DEST_TEXT "Destination path"
+#define STATS_LABEL "Copied %lld of %lld %s"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -17,8 +15,15 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    ui->statusBar->setSizeGripEnabled(false);
+    this->setFixedSize(this->size());
+
     ui->progressBar->setMinimum(0);
     ui->progressBar->reset();
+
+    m_total = 0; m_written = 0;
+
+    addFileBrowser();
 }
 
 MainWindow::~MainWindow()
@@ -26,78 +31,73 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::fileDone(QWidget *widget)
+{
+    int i = ui->progressLayout->indexOf(widget);
+    QLayoutItem *item = ui->progressLayout->takeAt(i);
+    if (item)
+    {
+        delete item->widget();
+        delete item;
+    }
+}
+
 void MainWindow::progress(qint64 bytes)
 {
     m_written += bytes;
     ui->progressBar->setValue( m_written / 1024 );
-
-    if (m_total == m_written)
-    {
-        m_written = m_total = 0;
-        ui->txtDest->setText(DEST_TEXT);
-        ui->txtSource->setText(SRC_TEXT);
-        ui->btnCopy->setEnabled(false);
-    }
 
     return;
 }
 
 void MainWindow::onError(QString file)
 {
-    QString errorMsg;
-    errorMsg = errorMsg.arg("An error ocured, the file %1 was not copied!", file);
+    QString errorMsg = QString("An error ocured, the file %1 was not copied!").arg(file);
     QMessageBox::information(this,
                             "Error", errorMsg,
                             QMessageBox::Ok);
 }
 
-void MainWindow::on_btnSource_clicked()
-{
-    m_sourceFiles = QFileDialog::getOpenFileNames(this, "Select source files", "~", "*.*");
-    if (!m_sourceFiles.isEmpty())
-    {
-        QFileInfo fileInfo(m_sourceFiles.at(0));
-        ui->txtSource->setText(fileInfo.absoluteDir().absolutePath());
-
-        foreach (const QString &fileName, m_sourceFiles)
-        {
-             m_total += QFileInfo(fileName).size();
-        }
-        ui->progressBar->setMaximum(m_total / 1024);
-    }
-
-    if (!m_sourceFiles.isEmpty() && !m_destDir.isEmpty())
-        ui->btnCopy->setEnabled(true);
-
-    return;
-}
-
-void MainWindow::on_btnDest_clicked()
-{
-    m_destDir = QFileDialog::getExistingDirectory(this, "Select destination directory", "/");
-    ui->txtDest->setText(m_destDir);
-
-    if (!m_sourceFiles.isEmpty() && !m_destDir.isEmpty())
-        ui->btnCopy->setEnabled(true);
-}
-
 void MainWindow::on_btnCopy_clicked()
-{   foreach (const QString &fileName, m_sourceFiles)
+{
+    emit copy();
+    return;
+}
+
+void  MainWindow::addFileBrowser()
+{
+    m_fileBrowser = new FileBrowser(this);
+    ui->mainVerticalLayout->insertWidget(0, m_fileBrowser);
+    connect(m_fileBrowser, SIGNAL(updateTotals(qint64)), this, SLOT(updateTotals(qint64)));
+    connect(m_fileBrowser, SIGNAL(readyToCopy(QStringList&, QString&, QString&)),
+            this, SLOT(copyReady(QStringList&, QString&, QString&)));
+}
+
+void MainWindow::copyReady(QStringList &source, QString &dest, QString &basePath)
+{
+    foreach (const QString &fileName, source)
     {
-        if (QFile::exists(fileName))
-        {
-            QFileInfo fileInfo(fileName);
-            QString destFile(m_destDir + "/" + fileInfo.fileName());
-
-            CopierWorker *copierWorker = new CopierWorker(fileName, destFile);
-            connect(copierWorker, SIGNAL(bytesWritten(qint64)), this, SLOT(progress(qint64)));
-            connect(copierWorker, SIGNAL(error(QString)), this, SLOT(onError(QString)));
-
-            QThreadPool::globalInstance()->start(copierWorker);
-        }
+        FileCopyWidget *progressWidget = new FileCopyWidget(fileName, dest, basePath, this);
+        connect(this, SIGNAL(copy()), progressWidget, SLOT(copy()));
+        connect(progressWidget, SIGNAL(fileDone(QWidget*)), this, SLOT(fileDone(QWidget*)));
+        connect(progressWidget, SIGNAL(updateStats(qint64)), this, SLOT(progress(qint64)));
+        ui->progressLayout->addWidget(progressWidget);
     }
 
-    m_sourceFiles.clear(); // remove everything from the list..
+    ui->btnCopy->setEnabled(true);
+}
 
-    return;
+void MainWindow::on_toolButton_clicked()
+{
+    ui->boxCopy->setVisible(!ui->boxCopy->isVisible());
+}
+
+void MainWindow::updateTotals(qint64 bytes)
+{
+    m_total += bytes;
+    QString stats;
+    stats.sprintf(STATS_LABEL, (m_written / 1024), (m_total / 1024), "KBs");
+    ui->lblMainStats->setText(stats);
+
+    ui->progressBar->setMaximum( m_total / 1024 );
 }

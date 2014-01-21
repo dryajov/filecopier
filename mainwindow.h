@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QVector>
 
+class FileBrowser;
+
 namespace Ui {
 class MainWindow;
 }
@@ -20,21 +22,28 @@ public slots:
     void progress(qint64 bytes);
     void onError(QString file);
 
+    void updateTotals(qint64 bytes);
+    void copyReady(QStringList& source, QString &dest, QString &basePath);
+    void fileDone(QWidget *widget);
+
 private slots:
-    void on_btnSource_clicked();
-
-    void on_btnDest_clicked();
-
     void on_btnCopy_clicked();
+    void on_toolButton_clicked();
+
+signals:
+    void copy();
+
+private:
+    void addFileBrowser();
 
 private:
     Ui::MainWindow *ui;
 
 private:
-    QStringList m_sourceFiles;
-    QString     m_destDir;
     qint64      m_written;
     qint64      m_total;
+
+    FileBrowser *m_fileBrowser;
 
     QVector<QThread*> m_threads;
 };
