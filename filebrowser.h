@@ -18,6 +18,8 @@ public:
 
     qint64 getTotal() { return m_total; }
 
+    void reset();
+
 private slots:
     void on_btnSource_clicked();
     void on_btnDest_clicked();

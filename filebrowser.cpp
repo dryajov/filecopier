@@ -9,8 +9,8 @@
 
 #include "copierworker.h"
 
-#define SRC_TEXT "Source path"
-#define DEST_TEXT "Destination path"
+#define SRC_TEXT tr("Source path")
+#define DEST_TEXT tr("Destination path")
 
 FileBrowser::FileBrowser(QWidget *parent) :
     QWidget(parent),
@@ -33,8 +33,19 @@ FileBrowser::~FileBrowser()
     delete ui;
 }
 
+void FileBrowser::reset()
+{
+    ui->txtDest->setText(DEST_TEXT);
+    ui->txtSource->setText(SRC_TEXT);
+    this->m_basePath = "";
+    this->m_destDir = "";
+    this->m_sourceFiles.clear();
+    this->m_total = 0;
+}
+
 void FileBrowser::on_btnSource_clicked()
 {
+    m_sourceFiles.clear();
     if (ui->btnDirectory->isChecked())
     {
         QString dir = QFileDialog::getExistingDirectory(this, "Select source directory", "~/");
@@ -90,6 +101,12 @@ void FileBrowser::scanDir(const QDir &dir)
    qDebug() << "Dir is: " << dir.dirName();
    QDirIterator iterator(dir.absolutePath(),                         
                          QDirIterator::Subdirectories);
+
+   if  (QCoreApplication::hasPendingEvents())
+   {
+       QCoreApplication::processEvents(QEventLoop::AllEvents);
+       QCoreApplication::flush();
+   }
 
    while (iterator.hasNext()) {
       iterator.next();

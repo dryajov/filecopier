@@ -1,5 +1,8 @@
 #include "copyenginedefault.h"
 
+#include <QDebug>
+#include <QThread>
+
 #define BUFF_SIZE 1024*4
 
 CopyEngineDefault::CopyEngineDefault(QString source, QString dest, QString basePath, bool paused)
@@ -10,16 +13,14 @@ CopyEngineDefault::CopyEngineDefault(QString source, QString dest, QString baseP
 bool CopyEngineDefault::copy(QString &errStr, ICopyEngineCallback *callback)
 {
     // if base path is passet, then we're copying a dir tree
-    if (!m_basePath.isEmpty() > 0 && !mkDestDirPath())
-    {
-        errStr = "Failed to create the directory structure.";
-        return false;
-    }
+    if (!m_basePath.isEmpty())
+        mkDestDirPath();
 
     QFile toFile(m_dest + "/" + QFileInfo(m_source).fileName());
     if (!toFile.open(QFile::WriteOnly))
     {
         errStr = QString("Failed to open destination % file for writing!").arg(m_dest);
+        qDebug() << errStr;
         return false;
     }
 
@@ -27,6 +28,7 @@ bool CopyEngineDefault::copy(QString &errStr, ICopyEngineCallback *callback)
     if(!fromFile.open(QFile::ReadOnly))
     {
         errStr = QString("Failed to source destination % file for reading!").arg(m_source);
+        qDebug() << errStr;
         return false;
     }
 
@@ -46,24 +48,34 @@ bool CopyEngineDefault::copy(QString &errStr, ICopyEngineCallback *callback)
 
         if(m_cancel)
         {
-            if (toFile.exists())
-                toFile.remove();
-
-            return true;
+            break;
         }
+
+        qDebug() << "Copying file" <<  m_source << "in thread - " << QThread::currentThreadId();
 
         qint64 writtenBytes = 0;
         while(writtenBytes < readBytes)
         {
             qint64 tmpWritten = toFile.write(buffer.data() + writtenBytes, readBytes - writtenBytes);
-            writtenBytes += tmpWritten;
-            if (callback) callback->writtenBytes(tmpWritten);
+            writtenBytes += tmpWritten;            
         }
+
+        if (callback)
+            callback->writtenBytes(writtenBytes);
+
         totalWritten += writtenBytes;
         updateCtrlFile(totalWritten);
     }
 
-    toFile.setPermissions(fromFile.permissions());
+    if (m_cancel)
+    {
+        if (toFile.exists())
+            toFile.remove();
+    }
+    else if (toFile.exists())
+    {
+        toFile.setPermissions(fromFile.permissions());
+    }
 
     removeCtrlFile();
     return true;

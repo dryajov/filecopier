@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QThread>
+#include <QTimer>
 
 class CopierWorker;
 
@@ -18,7 +19,7 @@ public:
     explicit FileCopyWidget(const QString &source, const QString &dest, const QString &basePath, QWidget *parent = 0);
     ~FileCopyWidget();
 
-    qint64 getTotal() { return m_total; }
+    qint64 getTotal()   { return m_total; }
     qint64 getWritten() { return m_written; }
 
     void finish();
@@ -35,20 +36,23 @@ signals:
 private slots:
     void on_btnResume_clicked();
     void on_btnCancel_clicked();
+    void updateGuiStats();
 
 private:
     Ui::FileCopyWidget *ui;
 
-    QString m_source;
-    QString m_dest;
-    QString m_basePath;
+    QString         m_source;
+    QString         m_dest;
+    QString         m_basePath;
 
-    qint64  m_total;
-    qint64  m_written;
+    qint64          m_total;
+    qint64          m_written;
 
     QThread         m_thread;
     CopierWorker*   m_copierWorker;
     bool            m_pause;
+
+    QTimer          m_statsTimer;
 };
 
 #endif // FILECOPYWIDGET_H

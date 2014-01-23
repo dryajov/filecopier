@@ -10,7 +10,7 @@ CopierWorker::CopierWorker(QString source, QString dest, QString basePath)
       m_dest(dest),
       m_basePath(basePath)
 {
-    m_copyEngine = new CopyEngineDefault(source, dest, basePath);
+    m_copyEngine = new CopyEngineDefault(source, dest, basePath); // TODO: we need to use a factory here
 }
 
 CopierWorker::~CopierWorker()
@@ -28,7 +28,6 @@ void CopierWorker::run()
             emit error(errorStr);
             return;
         }
-
     }
 
     emit done();

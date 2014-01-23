@@ -58,7 +58,7 @@ protected:
      * @brief mkDestDirPath
      * @return
      */
-    bool mkDestDirPath()
+    void mkDestDirPath()
     {
         QFileInfo sourceInfo(m_source);
         QString sourceDir = sourceInfo.absolutePath();
@@ -67,11 +67,8 @@ protected:
         m_dest = m_dest + newDir;
         QDir dir(m_dest);
 
-        bool res = false;
         if (!dir.exists())
-            res = dir.mkpath(m_dest);
-
-        return res;
+            dir.mkpath(m_dest);
     }
 
     /**

@@ -11,19 +11,23 @@
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    m_copying(false)
 {
     ui->setupUi(this);
 
-    ui->statusBar->setSizeGripEnabled(false);
-    this->setFixedSize(this->size());
+    // set a ZERO timer, which will only trigger
+    // when there are no more events/signals in
+    // the qt event queue.
+    // this will prevent signals flood from constant progress updates...
+    connect(&m_statsTimer, SIGNAL(timeout()), this, SLOT(updateGuiStats()));
+    m_statsTimer.setInterval(0);
 
-    ui->progressBar->setMinimum(0);
-    ui->progressBar->reset();
+//    ui->statusBar->setSizeGripEnabled(false);
+//    this->setFixedSize(this->size());
 
-    m_total = 0; m_written = 0;
-
-    addFileBrowser();
+    initFileBrowser();
+    reset();
 }
 
 MainWindow::~MainWindow()
@@ -33,6 +37,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::fileDone(QWidget *widget)
 {
+    updateGuiStats();
+
     int i = ui->progressLayout->indexOf(widget);
     QLayoutItem *item = ui->progressLayout->takeAt(i);
     if (item)
@@ -40,14 +46,32 @@ void MainWindow::fileDone(QWidget *widget)
         delete item->widget();
         delete item;
     }
+
+    if (ui->progressLayout->count() <= 0)
+        reset();
+}
+
+void MainWindow::reset()
+{
+    m_statsTimer.stop();
+    if (m_fileBrowser)
+    {
+        m_fileBrowser->setEnabled(true);
+        m_fileBrowser->reset();
+    }
+
+    ui->progressBar->setMinimum(0);
+    ui->progressBar->reset();
+    ui->btnCopy->setEnabled(false);
+    m_total = 0; m_written = 0;
+    m_copying = false;
+
+    updateGuiStats();
 }
 
 void MainWindow::progress(qint64 bytes)
 {
     m_written += bytes;
-    ui->progressBar->setValue( m_written / 1024 );
-
-    return;
 }
 
 void MainWindow::onError(QString file)
@@ -60,11 +84,23 @@ void MainWindow::onError(QString file)
 
 void MainWindow::on_btnCopy_clicked()
 {
-    emit copy();
-    return;
+    m_copying = true;
+    m_fileBrowser->setEnabled(false);
+    startCopy();
 }
 
-void  MainWindow::addFileBrowser()
+void MainWindow::startCopy()
+{
+    if (!m_copying)
+        return;
+
+    if (!m_statsTimer.isActive())
+        m_statsTimer.start();
+
+    emit copy();
+}
+
+void  MainWindow::initFileBrowser()
 {
     m_fileBrowser = new FileBrowser(this);
     ui->mainVerticalLayout->insertWidget(0, m_fileBrowser);
@@ -75,6 +111,7 @@ void  MainWindow::addFileBrowser()
 
 void MainWindow::copyReady(QStringList &source, QString &dest, QString &basePath)
 {
+    ui->btnCopy->setEnabled(true);
     foreach (const QString &fileName, source)
     {
         FileCopyWidget *progressWidget = new FileCopyWidget(fileName, dest, basePath, this);
@@ -82,9 +119,16 @@ void MainWindow::copyReady(QStringList &source, QString &dest, QString &basePath
         connect(progressWidget, SIGNAL(fileDone(QWidget*)), this, SLOT(fileDone(QWidget*)));
         connect(progressWidget, SIGNAL(updateStats(qint64)), this, SLOT(progress(qint64)));
         ui->progressLayout->addWidget(progressWidget);
-    }
 
-    ui->btnCopy->setEnabled(true);
+        if  (QCoreApplication::hasPendingEvents())
+        {
+            QCoreApplication::processEvents(QEventLoop::AllEvents);
+            QCoreApplication::flush();
+        }
+
+        startCopy();
+        qDebug() << "Adding filecopywidget for file - " << fileName;
+    }
 }
 
 void MainWindow::on_toolButton_clicked()
@@ -94,10 +138,18 @@ void MainWindow::on_toolButton_clicked()
 
 void MainWindow::updateTotals(qint64 bytes)
 {
-    m_total += bytes;
-    QString stats;
-    stats.sprintf(STATS_LABEL, (m_written / 1024), (m_total / 1024), "KBs");
-    ui->lblMainStats->setText(stats);
+    m_total = bytes;
+    ui->progressBar->reset();
+    ui->progressBar->setMaximum(m_total);
 
-    ui->progressBar->setMaximum( m_total / 1024 );
+    updateGuiStats();
+}
+
+void MainWindow::updateGuiStats()
+{
+    qint64 written = m_written, total = m_total;
+    QString stats;
+    stats.sprintf(STATS_LABEL, written, total, "KBs");
+    ui->lblMainStats->setText(stats);
+    ui->progressBar->setValue(written);
 }

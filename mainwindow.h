@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QVector>
+#include <QTimer>
 
 class FileBrowser;
 
@@ -29,12 +30,15 @@ public slots:
 private slots:
     void on_btnCopy_clicked();
     void on_toolButton_clicked();
+    void updateGuiStats();
 
 signals:
     void copy();
 
 private:
-    void addFileBrowser();
+    void initFileBrowser();
+    void reset();
+    void startCopy();
 
 private:
     Ui::MainWindow *ui;
@@ -45,7 +49,9 @@ private:
 
     FileBrowser *m_fileBrowser;
 
-    QVector<QThread*> m_threads;
+    QTimer      m_statsTimer;
+
+    bool        m_copying;
 };
 
 #endif // MAINWINDOW_H
