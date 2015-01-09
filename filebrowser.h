@@ -15,9 +15,6 @@ class FileBrowser : public QWidget
 public:
     explicit FileBrowser(QWidget *parent = 0);
     ~FileBrowser();
-
-    qint64 getTotal() { return m_total; }
-
     void reset();
 
 private slots:
@@ -25,24 +22,25 @@ private slots:
     void on_btnDest_clicked();
 
     void setRecurse(bool recurse) { m_recurse = recurse; }
+    void filesAdded(QStringList files);
 
 private:
-    void scanDir(const QDir &dir);
+    QStringList scanDir(const QDir &dir);
     void emitCopyReady();
 
 signals:
     void updateTotals(qint64);
     void readyToCopy(QStringList&, QString&, QString&);
+    void addFiles(QStringList&);
+    void setDestination(QString &dest, QString &basePath);
 
 private:
     Ui::FileBrowser *ui;
 
     QStringList m_sourceFiles;
     QString     m_destDir;
-
-    qint64      m_total;
-    bool        m_recurse;
     QString     m_basePath;
+    bool        m_recurse;
 };
 
 #endif // FILEBROWSER_H

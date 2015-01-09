@@ -86,7 +86,7 @@
               <height>249</height>
              </rect>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_5">
+            <layout class="QHBoxLayout" name="horizontalLayout">
              <item>
               <layout class="QVBoxLayout" name="progressLayout"/>
              </item>

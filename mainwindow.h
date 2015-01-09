@@ -5,6 +5,8 @@
 #include <QVector>
 #include <QTimer>
 
+#include "copycoordinator.h"
+
 class FileBrowser;
 
 namespace Ui {
@@ -26,6 +28,8 @@ public slots:
     void updateTotals(qint64 bytes);
     void copyReady(QStringList& source, QString &dest, QString &basePath);
     void fileDone(QWidget *widget);
+    void addFiles(QStringList& files);
+    void setDestination(QString &dest, QString &basePath) { m_dest = dest; m_basePath = basePath; }
 
 private slots:
     void on_btnCopy_clicked();
@@ -44,14 +48,19 @@ private:
     Ui::MainWindow *ui;
 
 private:
-    qint64      m_written;
-    qint64      m_total;
+    qint64          m_written;
+    qint64          m_total;
 
-    FileBrowser *m_fileBrowser;
+    QStringList     m_fileSet;
+    QString         m_dest;
+    QString         m_basePath;
 
-    QTimer      m_statsTimer;
+    FileBrowser     *m_fileBrowser;
 
-    bool        m_copying;
+    QTimer          m_statsTimer;
+    bool            m_copying;
+
+    CopyCoordinator *m_coordinator;
 };
 
 #endif // MAINWINDOW_H

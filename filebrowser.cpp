@@ -6,8 +6,13 @@
 #include <QThreadPool>
 #include <QMessageBox>
 #include <QDirIterator>
+#include <QFuture>
+#include <QFutureWatcher>
+//#include <QtConcurrent>
 
 #include "copierworker.h"
+#include "dirscanner.h"
+#include "mainwindow.h"
 
 #define SRC_TEXT tr("Source path")
 #define DEST_TEXT tr("Destination path")
@@ -18,14 +23,11 @@ FileBrowser::FileBrowser(QWidget *parent) :
     m_recurse(true)
 {
     ui->setupUi(this);
-
     ui->boxOptions->setVisible(false);
     connect(ui->btnDirectory, SIGNAL(toggled(bool)), ui->boxOptions, SLOT(setVisible(bool)));
 
     ui->chkRecurse->setChecked(m_recurse);
     connect(ui->chkRecurse, SIGNAL(toggled(bool)), this, SLOT(setRecurse(bool)));
-
-    m_total = 0;
 }
 
 FileBrowser::~FileBrowser()
@@ -40,7 +42,6 @@ void FileBrowser::reset()
     this->m_basePath = "";
     this->m_destDir = "";
     this->m_sourceFiles.clear();
-    this->m_total = 0;
 }
 
 void FileBrowser::on_btnSource_clicked()
@@ -49,35 +50,20 @@ void FileBrowser::on_btnSource_clicked()
     if (ui->btnDirectory->isChecked())
     {
         QString dir = QFileDialog::getExistingDirectory(this, "Select source directory", "~/");
-        QDir curDir(dir);
-        scanDir(curDir);
-        curDir.cdUp();
+        DirScanner *scanner = new DirScanner(dir);
+        scanner->setAutoDelete(true);
+        connect(scanner, SIGNAL(scannedFiles(QStringList)), this, SLOT(filesAdded(QStringList)));
+        QThreadPool::globalInstance()->start(scanner);
 
-        m_basePath = curDir.absolutePath();
+        m_basePath = dir;
+        ui->txtSource->setText(m_basePath);
     }
     else
+    {
         m_sourceFiles = QFileDialog::getOpenFileNames(this, "Select source files", "~/", "*.*");
-
-    if (!m_sourceFiles.isEmpty())
-    {       
-        if (m_basePath.isEmpty())
-        {
+        if (!m_sourceFiles.isEmpty())
             ui->txtSource->setText(QFileInfo(m_sourceFiles.at(0))
                                    .absoluteDir().canonicalPath());
-        }
-        else
-        {
-            ui->txtSource->setText(m_basePath);
-        }
-
-        foreach (const QString &fileName, m_sourceFiles)
-        {
-            qDebug() << "File name: " << fileName;
-            m_total += QFileInfo(fileName).size();
-        }
-
-        emit updateTotals(m_total);
-        emitCopyReady();
     }
 
     return;
@@ -93,35 +79,10 @@ void FileBrowser::on_btnDest_clicked()
 {
     m_destDir = QFileDialog::getExistingDirectory(this, "Select destination directory", "/");
     ui->txtDest->setText(m_destDir);
-    emitCopyReady();
+    emit setDestination(m_destDir, m_basePath);
 }
 
-void FileBrowser::scanDir(const QDir &dir)
+void FileBrowser::filesAdded(QStringList files)
 {
-   qDebug() << "Dir is: " << dir.dirName();
-   QDirIterator iterator(dir.absolutePath(),                         
-                         QDirIterator::Subdirectories);
 
-   if  (QCoreApplication::hasPendingEvents())
-   {
-       QCoreApplication::processEvents(QEventLoop::AllEvents);
-       QCoreApplication::flush();
-   }
-
-   while (iterator.hasNext()) {
-      iterator.next();
-
-      if (iterator.fileName() == "." || iterator.fileName() == "..")
-          continue;
-
-      if (!iterator.fileInfo().isDir()) {
-         m_sourceFiles.append(iterator.filePath());
-      }
-      else
-      {
-        scanDir(iterator.fileName());
-      }
-   }
 }
-
-

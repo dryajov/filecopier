@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui QT5current
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -17,7 +17,9 @@ SOURCES += main.cpp\
     copierworker.cpp \
     filebrowser.cpp \
     filecopywidget.cpp \
-    engines/copyenginedefault.cpp
+    engines/copyenginedefault.cpp \
+    copycoordinator.cpp \
+    dirscanner.cpp
 
 HEADERS  += mainwindow.h \
     copierworker.h \
@@ -25,7 +27,9 @@ HEADERS  += mainwindow.h \
     filecopywidget.h \
     icopyengine.h \
     engines/copyengineabstract.h \
-    engines/copyenginedefault.h
+    engines/copyenginedefault.h \
+    copycoordinator.h \
+    dirscanner.h
 
 FORMS    += mainwindow.ui \
     filebrowser.ui \

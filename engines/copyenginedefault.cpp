@@ -60,8 +60,11 @@ bool CopyEngineDefault::copy(QString &errStr, ICopyEngineCallback *callback)
             writtenBytes += tmpWritten;            
         }
 
+
         if (callback)
             callback->writtenBytes(writtenBytes);
+
+        QThread::yieldCurrentThread(); // give time to other threads
 
         totalWritten += writtenBytes;
         updateCtrlFile(totalWritten);

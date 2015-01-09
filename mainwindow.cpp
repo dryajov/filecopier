@@ -21,17 +21,21 @@ MainWindow::MainWindow(QWidget *parent) :
     // the qt event queue.
     // this will prevent signals flood from constant progress updates...
     connect(&m_statsTimer, SIGNAL(timeout()), this, SLOT(updateGuiStats()));
+    connect(&m_statsTimer, SIGNAL(timeout()), this, SLOT(addFiles()));
     m_statsTimer.setInterval(0);
 
 //    ui->statusBar->setSizeGripEnabled(false);
 //    this->setFixedSize(this->size());
 
+
+    m_coordinator = new CopyCoordinator();
     initFileBrowser();
     reset();
 }
 
 MainWindow::~MainWindow()
 {
+    delete m_coordinator;
     delete ui;
 }
 
@@ -39,13 +43,13 @@ void MainWindow::fileDone(QWidget *widget)
 {
     updateGuiStats();
 
-    int i = ui->progressLayout->indexOf(widget);
-    QLayoutItem *item = ui->progressLayout->takeAt(i);
-    if (item)
-    {
-        delete item->widget();
-        delete item;
-    }
+//    int i = ui->progressLayout->indexOf(widget);
+//    QLayoutItem *item = ui->progressLayout->takeAt(i);
+//    if (item)
+//    {
+//        delete item->widget();
+//        delete item;
+//    }
 
     if (ui->progressLayout->count() <= 0)
         reset();
@@ -105,13 +109,13 @@ void  MainWindow::initFileBrowser()
     m_fileBrowser = new FileBrowser(this);
     ui->mainVerticalLayout->insertWidget(0, m_fileBrowser);
     connect(m_fileBrowser, SIGNAL(updateTotals(qint64)), this, SLOT(updateTotals(qint64)));
-    connect(m_fileBrowser, SIGNAL(readyToCopy(QStringList&, QString&, QString&)),
-            this, SLOT(copyReady(QStringList&, QString&, QString&)));
+    connect(m_fileBrowser, SIGNAL(addFiles(QStringList&)), this, SLOT(addFiles(QStringList&)));
+//    connect(m_fileBrowser, SIGNAL(readyToCopy(QStringList&, QString&, QString&)),
+//            this, SLOT(copyReady(QStringList&, QString&, QString&)));
 }
 
 void MainWindow::copyReady(QStringList &source, QString &dest, QString &basePath)
-{
-    ui->btnCopy->setEnabled(true);
+{   
     foreach (const QString &fileName, source)
     {
         FileCopyWidget *progressWidget = new FileCopyWidget(fileName, dest, basePath, this);
@@ -119,16 +123,16 @@ void MainWindow::copyReady(QStringList &source, QString &dest, QString &basePath
         connect(progressWidget, SIGNAL(fileDone(QWidget*)), this, SLOT(fileDone(QWidget*)));
         connect(progressWidget, SIGNAL(updateStats(qint64)), this, SLOT(progress(qint64)));
         ui->progressLayout->addWidget(progressWidget);
-
-        if  (QCoreApplication::hasPendingEvents())
-        {
-            QCoreApplication::processEvents(QEventLoop::AllEvents);
-            QCoreApplication::flush();
-        }
-
         startCopy();
         qDebug() << "Adding filecopywidget for file - " << fileName;
     }
+}
+
+void MainWindow::addFiles(QStringList &files)
+{
+    ui->btnCopy->setEnabled(true);
+    updateGuiStats();
+    QCoreApplication::flush();
 }
 
 void MainWindow::on_toolButton_clicked()
